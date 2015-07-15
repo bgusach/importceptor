@@ -25,14 +25,14 @@ class _DepthManager(object):
     This is important because top level imports (0 depth) have to be considered in different way.
 
     """
-    def __init__(self, replacer):
-        self._replacer = replacer
+    def __init__(self, obj):
+        self._obj = obj
 
     def __enter__(self):
-        self._replacer._depth += 1
+        self._obj._depth += 1
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._replacer._depth -= 1
+        self._obj._depth -= 1
 
 
 class Importceptor(object):
@@ -40,7 +40,7 @@ class Importceptor(object):
     Context manager to intercept
 
     """
-    def __init__(self, replacements, unload_modules=True, strict=False, verbose=False):
+    def __init__(self, replacements, strict=False, verbose=False):
         """
         :param dict replacements: mapping module to object
         :param bool unload_modules: whether the imported module should be deleted from sys.modules. If deleted,
@@ -50,7 +50,6 @@ class Importceptor(object):
 
         """
         self._replacements = replacements
-        self._unload_modules = unload_modules
         self._strict = strict
         self._verbose = verbose
 
@@ -67,10 +66,9 @@ class Importceptor(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         __builtin__.__import__ = self._real_import
 
-        # "Unload" modules if necessary
-        if self._unload_modules:
-            for mod in self._get_current_loaded_modules() - self._pre_modules:
-                self._unload_module(mod)
+        # "Unload" modules
+        for mod in self._get_current_loaded_modules() - self._pre_modules:
+            self._unload_module(mod)
 
     def _import_handler(self, mod_name, globals, locals, fromlist, level=-1):
         # Respect __future__ imports
@@ -85,9 +83,6 @@ class Importceptor(object):
             return self._process_first_level_import(mod_name, globals, locals, fromlist, level)
 
         mod = self._process_import_with_replacements(mod_name, globals, locals, fromlist, level)
-
-        # Register module. Actually only relevant if unload_modules is False, but it does not hurt now.
-        self._register_module(mod_name, mod)
 
         return mod
 
@@ -163,7 +158,3 @@ class Importceptor(object):
     @staticmethod
     def _get_current_loaded_modules():
         return set(sys.modules.keys())
-
-    @staticmethod
-    def _register_module(name, mod):
-        sys.modules[name] = mod

@@ -135,49 +135,7 @@ class TestImportceptor(unittest.TestCase):
         """
         with self.assertRaises(KeyError):
             with ic.Importceptor({}, strict=True):
-                import mod1
-
-    def test_10(self):
-        """
-        If unload_modules is True, sys.modules is cleaned up before exiting the context manager
-
-        """
-        assert 'mod3' not in sys.modules
-        assert 'textwrap' not in sys.modules
-
-        with ic.Importceptor({'textwrap': None}):
-            import mod3
-
-            assert 'mod3' in sys.modules
-            # Notice how completely intercepted modules are registered in sys.modules while in context manager
-            assert 'textwrap' in sys.modules
-            assert sys.modules['textwrap'] is None
-
-        assert 'mod3' not in sys.modules
-        assert 'textwrap' not in sys.modules
-
-    def test_11(self):
-        """
-        If unload_modules is False, changes in sys.modules are persistent after exiting the context manager.
-        This can actually lead to very messy results, but under certain conditions and used with care,
-        it may be interesting.
-
-        """
-        assert 'mod3' not in sys.modules
-        assert 'textwrap' not in sys.modules
-
-        with ic.Importceptor({'textwrap': None}, unload_modules=False):
-            import mod3
-
-            assert 'mod3' in sys.modules
-            assert 'textwrap' in sys.modules
-
-        assert 'mod3' in sys.modules
-        assert 'textwrap' in sys.modules
-
-        # Let's clean up, just in case
-        del sys.modules['mod3']
-        del sys.modules['textwrap']
+                import os
 
     def test_12(self):
         """
@@ -186,6 +144,16 @@ class TestImportceptor(unittest.TestCase):
         """
         # __builtins__.__import__
         pass
+
+    def test_13(self):
+        """
+        Relative imports work fine
+
+        """
+        with ic.Importceptor({'_mod5': self.marker}, verbose=1):
+            from pack1 import mod5
+
+            assert mod5 is self.marker
 
 
 if __name__ == '__main__':

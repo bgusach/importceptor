@@ -45,15 +45,5 @@ docs/_build
 .idea
 
 # For the moment, I dont need the following
-.editorconfig
-.travis.yml
-AUTHORS.rst
-CONTRIBUTING.rst
-HISTORY.rst
-Makefile
-setup.cfg
-tox.ini
-README.rst
-requirements.txt
-MANIFEST.in
+admin
 
