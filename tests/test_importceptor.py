@@ -135,7 +135,8 @@ class TestImportceptor(unittest.TestCase):
         """
         with self.assertRaises(KeyError):
             with ic.Importceptor({}, strict=True):
-                import os
+                # mod1 imports os
+                import mod1
 
     def test_12(self):
         """
