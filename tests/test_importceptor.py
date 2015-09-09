@@ -8,6 +8,7 @@ Tests for `importceptor` module.
 """
 
 from __future__ import unicode_literals
+# from __future__ import absolute_import
 
 import unittest
 import sys
@@ -151,11 +152,20 @@ class TestImportceptor(unittest.TestCase):
         Relative imports work fine
 
         """
-        with ic.Importceptor({'_mod5': self.marker}, verbose=1):
-            from pack1 import mod5
+        with ic.Importceptor({'pack1.mod11': self.marker}):
+            from mod6 import mod11
 
-            assert mod5 is self.marker
+            assert mod11 is self.marker
 
+    def test_14(self):
+        """
+        Import from packages works as well
+
+        """
+        with ic.Importceptor({'pack1.mod11': self.marker}):
+            from mod5 import mod11
+
+        assert mod11 is self.marker
 
 if __name__ == '__main__':
     unittest.main()

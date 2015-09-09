@@ -2,10 +2,14 @@
 
 from __future__ import unicode_literals
 from __future__ import print_function
+from __future__ import absolute_import
 
 import sys
-import __builtin__
 
+try:
+    import __builtin__ as builtins
+except ImportError:
+    import builtins
 
 __all__ = ['Importceptor', 'Bunch']
 
@@ -17,22 +21,6 @@ class Bunch(object):
     """
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
-
-
-class _DepthManager(object):
-    """
-    Context manager that takes care of the depth of imports.
-    This is important because top level imports (0 depth) have to be considered in different way.
-
-    """
-    def __init__(self, obj):
-        self._obj = obj
-
-    def __enter__(self):
-        self._obj._depth += 1
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._obj._depth -= 1
 
 
 class Importceptor(object):
@@ -53,18 +41,18 @@ class Importceptor(object):
         self._strict = strict
         self._verbose = verbose
 
-        self._depth = 0
+        self._import_stack = []
         self._real_import = None
         self._pre_modules = None
 
     def __enter__(self):
         self._pre_modules = self._get_current_loaded_modules()
 
-        self._real_import = __builtin__.__import__
-        __builtin__.__import__ = self._import_handler
+        self._real_import = builtins.__import__
+        builtins.__import__ = self._import_handler
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        __builtin__.__import__ = self._real_import
+        builtins.__import__ = self._real_import
 
         # "Unload" modules
         for mod in self._get_current_loaded_modules() - self._pre_modules:
@@ -76,10 +64,10 @@ class Importceptor(object):
             return self._real_import(mod_name, globals, locals, fromlist, level)
 
         if self._verbose:
-            print('..' * self._depth + mod_name)
+            print('..' * len(self._import_stack) + mod_name)
 
         # Imports directly under context manager
-        if self._depth == 0:
+        if not self._import_stack:
             return self._process_first_level_import(mod_name, globals, locals, fromlist, level)
 
         mod = self._process_import_with_replacements(mod_name, globals, locals, fromlist, level)
@@ -91,18 +79,34 @@ class Importceptor(object):
         Process import directly under the context manager.
 
         """
-        with self._create_depth_manager():
+        # with self._create_depth_manager():
+        self._import_stack.append(mod_name)
+
+        try:
             return self._real_import(mod_name, globals, locals, fromlist, level)
 
+        finally:
+            self._import_stack.pop()
+
     def _process_import_with_replacements(self, mod_name, globals, locals, fromlist, level):
-        with self._create_depth_manager():
+        self._import_stack.append(mod_name)
+
+        try:
 
             if fromlist:
                 return self._process_import_with_from_list(mod_name, globals, locals, fromlist, level)
 
             return self._get_replacement_for_module(mod_name, globals, locals, fromlist, level)
 
+        finally:
+            self._import_stack.pop()
+
     def _process_import_with_from_list(self, mod_name, globals, locals, fromlist, level):
+        # If relative, make it absolute
+        if level > 0:
+            segments = self._import_stack[-1].split('.')
+            mod_name = '.'.join(segments[:-level])
+
         # When there are "from mod_name import var_name[, var_name2]" statements, let's check if the
         # user passed each full names like: `mod_name.var_name`. Otherwise default to `mod_name` and fetch
         # the `var_name` attribute from there.
@@ -115,8 +119,12 @@ class Importceptor(object):
 
         # Then the not explicit. Delegate to the module to extract the attribute
         not_available = [name for (name, full_name) in names if full_name not in self._replacements]
-        module = self._get_replacement_for_module(mod_name, globals, locals, [], level)
-        fake_mod.__dict__.update((name, getattr(module, name)) for name in not_available)
+
+        if not_available:
+            # Pass level=-1, because if it was relative, we converted it into absolute.
+            # NOTE [ik45 19.07.2015]: maybe pass level 0?
+            module = self._get_replacement_for_module(mod_name, globals, locals, [], level=-1)
+            fake_mod.__dict__.update((name, getattr(module, name)) for name in not_available)
 
         return fake_mod
 
@@ -128,7 +136,6 @@ class Importceptor(object):
         will be sought.
 
         """
-        # Note: is fromlist necessary here?
         try:
             return self._replacements[mod_name]
 
@@ -137,9 +144,6 @@ class Importceptor(object):
                 raise
 
             return self._real_import(mod_name, globals, locals, fromlist, level)
-
-    def _create_depth_manager(self):
-        return _DepthManager(self)
 
     _create_bunch = Bunch
 
