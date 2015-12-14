@@ -54,7 +54,7 @@ class Importceptor(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         builtins.__import__ = self._real_import
 
-        # "Unload" modules
+        # "Unload" modules.
         for mod in self._get_current_loaded_modules() - self._pre_modules:
             self._unload_module(mod)
 
@@ -70,9 +70,7 @@ class Importceptor(object):
         if not self._import_stack:
             return self._process_first_level_import(mod_name, globals, locals, fromlist, level)
 
-        mod = self._process_import_with_replacements(mod_name, globals, locals, fromlist, level)
-
-        return mod
+        return self._process_import_with_replacements(mod_name, globals, locals, fromlist, level)
 
     def _process_first_level_import(self, mod_name, globals, locals, fromlist, level):
         """

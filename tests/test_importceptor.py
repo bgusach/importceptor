@@ -1,14 +1,11 @@
 # coding: utf-8
 
 """
-test_importceptor
-----------------------------------
-
 Tests for `importceptor` module.
+
 """
 
 from __future__ import unicode_literals
-# from __future__ import absolute_import
 
 import unittest
 import sys
